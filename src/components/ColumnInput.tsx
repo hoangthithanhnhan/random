@@ -3,6 +3,8 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
+import "swiper/css/navigation";
+import { Navigation } from "swiper/modules";
 
 const InputColumns = () => {
   const [columns, setColumns] = useState<string[]>(["", "", "", ""]);
@@ -127,129 +129,118 @@ const InputColumns = () => {
             />
             TOTAL {getTotalLines()}
           </div>
-          <Swiper
-            spaceBetween={20}
-            slidesPerView={3} // số lượng item hiển thị
-            breakpoints={{
-              640: { slidesPerView: 1 },
-              1024: { slidesPerView: 3 },
-            }}
-          >
-            {columns.map((content, index, item) => (
-              <SwiperSlide>
-                <div
-                  key={index}
-                  className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mx-2"
-                  style={{ width: "full", minWidth: "21.18vw" }}
-                >
-                  {/* Header */}
-                  <div
-                    className="flex justify-center items-center bg-[#F0F0F0]"
-                    style={{
-                      borderTopLeftRadius: 12,
-                      borderTopRightRadius: 12,
-                      padding: "8px",
-                    }}
-                  >
-                    <Image
-                      src="/people.png"
-                      alt="icon-list"
-                      width={16}
-                      height={16}
-                      style={{ marginRight: 5 }}
-                    />
-                    <div
-                      className="text-sm font-medium"
-                      style={{ color: "var(--color-primary)" }}
-                    >
-                      {countLines(content)}
-                    </div>
-                  </div>
+          <div style={{ position: "relative", padding: "0 80px" }}>
+            {/* Nút navigation tùy chỉnh */}
+            <div
+              className="swiper-button-prev custom-nav"
+              style={{
+                position: "absolute",
+                left: 20,
+                top: "50%",
+                transform: "translateY(-50%)",
+                zIndex: 20,
+                cursor: "pointer",
+                width: "40px",
+                height: "40px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+              }}
+            ></div>
+            <div
+              className="swiper-button-next custom-nav"
+              style={{
+                position: "absolute",
+                right: 20,
+                top: "50%",
+                transform: "translateY(-50%)",
+                zIndex: 20,
+                cursor: "pointer",
+                width: "40px",
+                height: "40px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+              }}
+            ></div>
 
-                  {/* Textarea */}
-                  <textarea
-                    className="w-full h-[608px] text-white resize-none focus:outline-none text-center"
-                    value={content}
-                    onChange={(e) => handleInputChange(index, e)}
-                    onPaste={(e) => handlePaste(index, e)}
-                    rows={1}
-                    style={{
-                      lineHeight: "22.5px",
-                      minHeight: "24rem",
-                      backgroundColor: "#BABABA80",
-                      borderBottomLeftRadius: "12px",
-                      borderBottomRightRadius: "12px",
-                      color: "white",
-                      fontSize: "14px",
-                      padding: "8px 12px",
-                      border: "none",
-                    }}
-                  />
-                </div>
-              </SwiperSlide>
-            ))}
-            {[1, 2, 3, 4, 5].map((item) => (
-              <SwiperSlide key={item}>
-                <div className="p-4 bg-gray-200 rounded">Item {item}</div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
+            <Swiper
+              modules={[Navigation]}
+              navigation={{
+                prevEl: ".swiper-button-prev",
+                nextEl: ".swiper-button-next",
+              }}
+              spaceBetween={20}
+              slidesPerView={4}
+              loop={false}
+              breakpoints={{
+                640: { slidesPerView: 1 },
+                1024: { slidesPerView: 4 },
+              }}
+            >
+              {columns.map((content, index) => (
+                <SwiperSlide key={index}>
+                  <div
+                    className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mx-2"
+                    style={{ width: "full", minWidth: "21.18vw" }}
+                  >
+                    {/* Header */}
+                    <div
+                      className="flex justify-center items-center bg-[#F0F0F0]"
+                      style={{
+                        borderTopLeftRadius: 12,
+                        borderTopRightRadius: 12,
+                        padding: "8px",
+                      }}
+                    >
+                      <Image
+                        src="/people.png"
+                        alt="icon-list"
+                        width={16}
+                        height={16}
+                        style={{ marginRight: 5 }}
+                      />
+                      <div
+                        className="text-sm font-medium"
+                        style={{ color: "var(--color-primary)" }}
+                      >
+                        {countLines(content)}
+                      </div>
+                    </div>
+
+                    {/* Textarea */}
+                    <textarea
+                      className="w-full h-[608px] text-white resize-none focus:outline-none text-center custom-scroll"
+                      value={content}
+                      onChange={(e) => handleInputChange(index, e)}
+                      onPaste={(e) => handlePaste(index, e)}
+                      rows={1}
+                      style={{
+                        lineHeight: "22.5px",
+                        minHeight: "24rem",
+                        backgroundColor: "#BABABA80",
+                        borderBottomLeftRadius: "12px",
+                        borderBottomRightRadius: "12px",
+                        color: "white",
+                        fontSize: "14px",
+                        padding: "8px 12px",
+                        border: "none",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    />
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
           <div
             className="flex w-full justify-between"
             style={{ paddingLeft: "80px", paddingRight: "80px" }}
-          >
-            {columns.map((content, index) => (
-              <div
-                key={index}
-                className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mx-2"
-                style={{ width: "full", minWidth: "21.18vw" }}
-              >
-                {/* Header */}
-                <div
-                  className="flex justify-center items-center bg-[#F0F0F0] p-5"
-                //   style={{
-                //     borderTopLeftRadius: 12,
-                //     borderTopRightRadius: 12,
-                //     padding: "8px",
-                //   }}
-                >
-                  <Image
-                    src="/people.png"
-                    alt="icon-list"
-                    width={16}
-                    height={16}
-                    style={{ marginRight: 5 }}
-                  />
-                  <div
-                    className="text-sm font-medium"
-                    style={{ color: "var(--color-primary)" }}
-                  >
-                    {countLines(content)}
-                  </div>
-                </div>
-
-                {/* Textarea */}
-                <textarea
-                  className="w-full h-[608px] text-white resize-none focus:outline-none text-center"
-                  value={content}
-                  onChange={(e) => handleInputChange(index, e)}
-                  onPaste={(e) => handlePaste(index, e)}
-                  rows={1}
-                  style={{
-                    lineHeight: "22.5px",
-                    minHeight: "24rem",
-                    backgroundColor: "#BABABA80",
-                    borderBottomLeftRadius: "12px",
-                    borderBottomRightRadius: "12px",
-                    color: "white",
-                    fontSize: "14px",
-                    padding: "8px 12px",
-                    border: "none",
-                  }}
-                />
-              </div>
-            ))}
-          </div>
+          ></div>
         </div>
       </div>
 

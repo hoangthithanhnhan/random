@@ -18,3 +18,9 @@
   --color-primary: #008F64;
   --font-inter: 'Inter', sans-serif;
 }
+
+/* Tùy chỉnh cho Firefox */
+.custom-scroll {
+  scrollbar-width: thin; /* Có thể là 'auto', 'thin', hoặc 'none' */
+  scrollbar-color: #008F64 #f1f1f1; /* Màu thumb và track */
+}
