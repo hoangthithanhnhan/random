@@ -7,8 +7,12 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 import { Navigation, Pagination } from "swiper/modules";
 import { Tooltip } from "@heroui/react";
+import { useRouter } from "next/navigation";
 
 const InputColumns = () => {
+
+  const router = useRouter();
+
   const [columns, setColumns] = useState<string[][]>(
     Array(4)
       .fill([])
@@ -275,7 +279,7 @@ const InputColumns = () => {
                           className="relative w-full h-[22.5px] overflow-hidden text-white text-center whitespace-nowrap text-ellipsis"
                           contentEditable
                           suppressContentEditableWarning
-                          onFocus={(e) => handleFocus(e, colIndex, lineIndex)} // 👈 update chỗ này
+                          onFocus={(e) => handleFocus(e, colIndex, lineIndex)} 
                           onInput={(e) => {
                             const el = e.currentTarget;
                             handleInputChange(
@@ -313,7 +317,10 @@ const InputColumns = () => {
       </div>
 
       <div className="flex justify-center items-center">
-        <button className="bg-[var(--color-primary)] text-white border-none rounded-[8px] py-[7.5px] px-[63.5px] sm:py-[14px] sm:px-[75px] font-[700] cursor-pointer mt-[23px]">
+        <button
+          onClick={() => router.push("/random/spin")}
+          className="bg-[var(--color-primary)] text-white border-none rounded-[8px] py-[7.5px] px-[63.5px] sm:py-[14px] sm:px-[75px] font-[700] cursor-pointer mt-[23px]"
+        >
           START
         </button>
       </div>

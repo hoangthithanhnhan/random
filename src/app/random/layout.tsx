@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Image from "next/image";
 import "../../styles/globals.scss";
-import { color } from "framer-motion";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,7 +21,7 @@ export default function RootLayout({
         <main
           className="relative min-h-screen bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: "url(/bg-random.png)",
+            backgroundImage: "url(/bg.png)",
           }}
         >
 
