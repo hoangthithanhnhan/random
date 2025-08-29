@@ -25,15 +25,13 @@ export default function RootLayout({
             backgroundImage: "url(/bg-random.png)",
           }}
         >
-          {/* Overlay */}
-
 
           {/* Content */}
           <div className="relative z-10">
-            <div className="flex flex-col items-center justify-center" style={{paddingTop: '10px', marginBottom: '26px'}}>
+            <div className="flex flex-col items-center justify-center pt-" style={{paddingTop: '10px', marginBottom: '26px'}}>
                 <Image src="/logo.png" alt="Logo" width={146} height={32} style={{marginBottom: '30px'}}/>
-                <p style={{ color: '#02E09E', fontSize: '32px', fontWeight: '800', marginBottom: '6px' }}>GOLDEN SPIN</p>
-                <p style={{fontWeight: '500', fontSize: '14px', color: 'white'}}>Every spin is a chance to unlock golden rewards on blockchain</p>
+                <p className="sm:text-[32px] text-[24px]" style={{ color: '#02E09E', fontWeight: '800', marginBottom: '6px' }}>GOLDEN SPIN</p>
+                <p style={{fontWeight: '500', fontSize: '14px', color: 'white'}} className="text-center">Every spin is a chance to unlock golden rewards on blockchain</p>
             </div>
             {children}
           </div>
