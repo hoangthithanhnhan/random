@@ -215,7 +215,7 @@ const InputColumns = () => {
               clickable: true,
               el: ".swiper-pagination",
               renderBullet: (index, className) => {
-                return `<span class="${className} custom-bullet"></span>`;
+                return `<span class="${className} custom-bullet swiper-pagination-clickable swiper-pagination-bullets swiper-pagination-horizontal"></span>`;
               },
             }}
             spaceBetween={20}
