@@ -16,7 +16,7 @@ const InputColumns = () => {
   );
   const maxLinesPerColumn = 26;
 
-  // helper: treat NBSP as normal space, then trim; consider empty when nothing left
+  // helper: clean text
   const cleanText = (s: string) => s.replace(/\u00A0/g, " ").trim();
   const isEmptyLine = (s: string | undefined | null) =>
     !s || cleanText(s) === "";
@@ -26,7 +26,6 @@ const InputColumns = () => {
     lineIndex: number,
     value: string
   ) => {
-    // chỉ cho nhập nếu các dòng trước đã có chữ (giữ business rule của bạn)
     const isPreviousLinesFilled = columns[colIndex]
       .slice(0, lineIndex)
       .every((line) => !isEmptyLine(line));
@@ -36,7 +35,6 @@ const InputColumns = () => {
     }
 
     const newColumns = [...columns];
-    // lưu dưới dạng đã clean (loại NBSP + trim)
     newColumns[colIndex][lineIndex] = cleanText(value);
     setColumns(newColumns);
   };
@@ -54,7 +52,6 @@ const InputColumns = () => {
 
     const newColumns = [...columns];
     let currentColIndex = colIndex;
-    // tìm vị trí dòng rỗng đầu tiên trong cột start
     let currentLineIndex = 0;
     while (
       currentLineIndex < maxLinesPerColumn &&
@@ -78,20 +75,7 @@ const InputColumns = () => {
     setColumns(newColumns);
   };
 
-  // focus handler: nếu rỗng thì đặt caret cuối (prevent caret nhảy lung tung)
-  const handleFocus = (e: React.FocusEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    if (isEmptyLine(el.textContent ?? "")) {
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.selectNodeContents(el);
-      range.collapse(false); // cuối
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  };
-
-  // đặt caret ở cuối element (dùng sau focus programmatic)
+  // đặt caret ở cuối
   function setCaretToEnd(el: HTMLElement | null) {
     if (!el) return;
     const range = document.createRange();
@@ -101,10 +85,43 @@ const InputColumns = () => {
       range.collapse(false);
       sel?.removeAllRanges();
       sel?.addRange(range);
-    } catch {
-      // fallback
-    }
+    } catch {}
   }
+
+  // tìm dòng trống đầu tiên trong cột
+  const getFirstEmptyLine = (colIndex: number) => {
+    const col = columns[colIndex];
+    const idx = col.findIndex((line) => isEmptyLine(line));
+    return idx === -1 ? col.length : idx;
+  };
+
+  // focus handler: ép focus về dòng trống đầu tiên,
+  // nhưng vẫn cho edit các dòng đã nhập
+  const handleFocus = (
+    e: React.FocusEvent<HTMLDivElement>,
+    colIndex: number,
+    lineIndex: number
+  ) => {
+    const firstEmpty = getFirstEmptyLine(colIndex);
+    const currentLine = columns[colIndex][lineIndex];
+
+    // Nếu dòng này trống và chưa phải dòng trống đầu tiên -> ép focus về dòng trống đầu tiên
+    if (isEmptyLine(currentLine) && lineIndex !== firstEmpty) {
+      e.preventDefault();
+      const target = document.getElementById(
+        `line-${colIndex}-${firstEmpty}`
+      ) as HTMLElement | null;
+      target?.focus();
+      setCaretToEnd(target);
+      return;
+    }
+
+    // Ngược lại (dòng có chữ hoặc đúng dòng trống đầu tiên) thì cho edit/focus bình thường
+    const el = e.currentTarget;
+    if (isEmptyLine(el.textContent ?? "")) {
+      setCaretToEnd(el);
+    }
+  };
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLDivElement>,
@@ -115,16 +132,13 @@ const InputColumns = () => {
       e.preventDefault();
       e.stopPropagation();
 
-      // next line trong cùng cột
       if (lineIndex + 1 < maxLinesPerColumn) {
         const nextLine = document.getElementById(
           `line-${colIndex}-${lineIndex + 1}`
         ) as HTMLElement | null;
         nextLine?.focus();
-        // đặt caret cuối sau khi browser đã focus
         setTimeout(() => setCaretToEnd(nextLine), 0);
       } else {
-        // next column first line
         if (colIndex + 1 < columns.length) {
           const nextColFirstLine = document.getElementById(
             `line-${colIndex + 1}-0`
@@ -132,7 +146,6 @@ const InputColumns = () => {
           nextColFirstLine?.focus();
           setTimeout(() => setCaretToEnd(nextColFirstLine), 0);
         } else {
-          // tạo cột mới và focus
           const newColumns = [...columns, Array(maxLinesPerColumn).fill("")];
           setColumns(newColumns);
           setTimeout(() => {
@@ -236,7 +249,6 @@ const InputColumns = () => {
                       className="text-sm font-medium"
                       style={{ color: "var(--color-primary)" }}
                     >
-                      {/* dùng cùng hàm isEmptyLine để đếm đúng */}
                       {column.filter((line) => !isEmptyLine(line)).length}
                     </div>
                   </div>
@@ -263,29 +275,19 @@ const InputColumns = () => {
                           className="relative w-full h-[22.5px] overflow-hidden text-white text-center whitespace-nowrap text-ellipsis"
                           contentEditable
                           suppressContentEditableWarning
-                          onFocus={handleFocus} // <-- bắt sự kiện focus để đặt caret
+                          onFocus={(e) => handleFocus(e, colIndex, lineIndex)} // 👈 update chỗ này
                           onInput={(e) => {
                             const el = e.currentTarget;
-                            // lưu caret pos nếu muốn, nhưng ta clean value trước khi lưu
-                            const caret = (() => {
-                              const sel = window.getSelection();
-                              if (!sel || sel.rangeCount === 0) return null;
-                              return sel.getRangeAt(0).startOffset;
-                            })();
                             handleInputChange(
                               colIndex,
                               lineIndex,
                               el.textContent || ""
                             );
-                            // restore caret (nếu cần)
                             requestAnimationFrame(() => {
                               const node = document.getElementById(
                                 `line-${colIndex}-${lineIndex}`
                               ) as HTMLElement | null;
-                              if (caret != null && node) {
-                                // đặt caret cẩn thận: nếu rỗng thì đặt cuối
-                                setCaretToEnd(node);
-                              }
+                              setCaretToEnd(node);
                             });
                           }}
                           onKeyDown={(e) =>
@@ -297,7 +299,6 @@ const InputColumns = () => {
                             outline: "none",
                           }}
                         >
-                          {/* hiển thị NBSP khi rỗng để div giữ height, nhưng state là "" khi rỗng */}
                           {isEmptyLine(line) ? "\u00A0" : line}
                         </div>
                       </Tooltip>
