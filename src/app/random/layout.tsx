@@ -26,7 +26,7 @@ export default function RootLayout({
           }}
         >
           {/* Overlay */}
-          <div className="absolute inset-0 bg-[#08090D]"></div>
+
 
           {/* Content */}
           <div className="relative z-10">

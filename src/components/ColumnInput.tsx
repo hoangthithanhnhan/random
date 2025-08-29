@@ -113,7 +113,7 @@ const InputColumns = () => {
         {/* Container scroll ngang */}
         <div ref={scrollRef} className="overflow-x-hidden">
           <div
-            className="text-right font-semibold"
+            className="text-right font-semibold flex justify-end"
             style={{
               color: "white",
               paddingRight: "80px",
@@ -123,13 +123,13 @@ const InputColumns = () => {
             <Image
               src="/total.png"
               alt="icon-list"
-              width={16}
+              width={24}
               height={16}
-              style={{ marginRight: 5 }}
+              className="mr-[5px] object-cover"
             />
-            TOTAL {getTotalLines()}
+            <p className="text-white">TOTAL {getTotalLines()}</p>
           </div>
-          <div style={{ position: "relative", padding: "0 80px" }}>
+          <div className="relative px-16" >
             {/* Nút navigation tùy chỉnh */}
             <div
               className="swiper-button-prev custom-nav"
@@ -173,11 +173,12 @@ const InputColumns = () => {
                 nextEl: ".swiper-button-next",
               }}
               spaceBetween={20}
-              slidesPerView={4}
+              slidesPerView={1}
               loop={false}
               breakpoints={{
-                640: { slidesPerView: 1 },
-                1024: { slidesPerView: 4 },
+                768: { slidesPerView: 2 },
+                1024: { slidesPerView: 3 },
+                1280: { slidesPerView: 4 },
               }}
             >
               {columns.map((content, index) => (
