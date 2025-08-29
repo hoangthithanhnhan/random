@@ -184,7 +184,7 @@ const InputColumns = () => {
               {columns.map((content, index) => (
                 <SwiperSlide key={index}>
                   <div
-                    className="bg-gray-800 rounded-lg shadow-lg overflow-hidden mx-2"
+                    className="rounded-lg shadow-lg overflow-hidden mx-2"
                     style={{ width: "full", minWidth: "21.18vw" }}
                   >
                     {/* Header */}
