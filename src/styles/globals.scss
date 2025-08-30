@@ -51,3 +51,14 @@
   border-radius: 2px;
   background: var(--color-primary) !important;
 }
+
+/* Navigation buttons disabled state */
+.swiper-button-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.swiper-button-disabled::after {
+  opacity: 0.35 !important;
+}

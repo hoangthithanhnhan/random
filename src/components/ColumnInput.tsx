@@ -20,13 +20,59 @@ const InputColumns = () => {
       .map(() => Array(maxLinesPerColumn).fill(""))
   );
 
-  // helper: clean text
-  const cleanText = (s: string) => s.replace(/\u00A0/g, " ").trim();
+  // helper: clean text - hỗ trợ tiếng Việt
+  const cleanText = (s: string) => {
+    if (!s) return "";
+    // Loại bỏ non-breaking space và trim
+    return s.replace(/\u00A0/g, " ").trim();
+  };
   const isEmptyLine = (s: string | undefined | null) =>
     !s || cleanText(s) === "";
 
   const isColumnFull = (col: string[]) =>
     col.every((line) => !isEmptyLine(line));
+
+  // Kiểm tra xem có thể tạo cột mới hay không
+  const canCreateNewColumn = () => {
+    const lastColumn = columns[columns.length - 1];
+    return lastColumn && isColumnFull(lastColumn) && lastColumn.some(line => !isEmptyLine(line));
+  };
+
+  // Function helper để cập nhật navigation
+  const updateNavigation = () => {
+    if (!swiperRef.current || !swiperRef.current.swiper) return;
+    
+    const swiper = swiperRef.current.swiper;
+    const currentIndex = swiper.activeIndex;
+    const isLastColumn = currentIndex === columns.length - 1;
+    const currentColumnFull = isColumnFull(columns[currentIndex]);
+    
+    // Có thể next nếu: không phải cột cuối VÀ cột hiện tại đã full
+    const canGoNext = !isLastColumn && currentColumnFull;
+    
+    const nextEl = swiper.navigation?.nextEl as HTMLElement;
+    const prevEl = swiper.navigation?.prevEl as HTMLElement;
+    
+    if (nextEl) {
+      if (!canGoNext) {
+        nextEl.classList.add("swiper-button-disabled");
+        nextEl.setAttribute("aria-disabled", "true");
+      } else {
+        nextEl.classList.remove("swiper-button-disabled");
+        nextEl.removeAttribute("aria-disabled");
+      }
+    }
+    
+    if (prevEl) {
+      if (currentIndex === 0) {
+        prevEl.classList.add("swiper-button-disabled");
+        prevEl.setAttribute("aria-disabled", "true");
+      } else {
+        prevEl.classList.remove("swiper-button-disabled");
+        prevEl.removeAttribute("aria-disabled");
+      }
+    }
+  };
 
 const TOTAL_LINES = maxLinesPerColumn * 4;
 const flattenColumns = (cols: string[][]) => cols.flat();
@@ -38,7 +84,7 @@ const chunkColumns = (flat: string[]) => {
   return result;
 };
 
-  // nhập 1 dòng
+  // nhập 1 dòng - hỗ trợ tiếng Việt
   const handleInputChange = (
     colIndex: number,
     lineIndex: number,
@@ -47,7 +93,10 @@ const chunkColumns = (flat: string[]) => {
     let flat = flattenColumns(columns);
     const index = colIndex * maxLinesPerColumn + lineIndex;
 
-    if (isEmptyLine(value)) {
+    // Xử lý giá trị input
+    const cleanedValue = cleanText(value);
+
+    if (isEmptyLine(cleanedValue)) {
       // xoá → dồn toàn bộ phần tử sau lên
       flat.splice(index, 1);
       flat.push("");
@@ -56,7 +105,7 @@ const chunkColumns = (flat: string[]) => {
       if (
         colIndex > 0 &&
         !isColumnFull(columns[colIndex - 1]) &&
-        !isEmptyLine(value)
+        !isEmptyLine(cleanedValue)
       ) {
         return;
       }
@@ -65,18 +114,19 @@ const chunkColumns = (flat: string[]) => {
       const isPreviousFilled = flat
         .slice(0, index)
         .every((line) => !isEmptyLine(line));
-      if (!isPreviousFilled && !isEmptyLine(value)) {
+      if (!isPreviousFilled && !isEmptyLine(cleanedValue)) {
         return;
       }
 
-      flat[index] = cleanText(value);
+      // Lưu giá trị đã được clean
+      flat[index] = cleanedValue;
     }
 
     const newColumns = chunkColumns(flat);
     setColumns(newColumns);
   };
 
-  // paste nhiều dòng
+  // paste nhiều dòng - hỗ trợ tiếng Việt
   const handlePaste = (
     colIndex: number,
     event: React.ClipboardEvent<HTMLDivElement>
@@ -88,8 +138,12 @@ const chunkColumns = (flat: string[]) => {
 
     event.preventDefault();
     const pasteData = event.clipboardData.getData("text");
+    // Hỗ trợ cả Windows (\r\n) và Unix (\n) line endings
     const rawLines = pasteData.split(/\r?\n/);
-    const lines = rawLines.map((l) => cleanText(l)).filter((l) => l !== "");
+    // Clean và filter các dòng trống, hỗ trợ tiếng Việt
+    const lines = rawLines
+      .map((l) => cleanText(l))
+      .filter((l) => l !== "" && l.length > 0);
     if (lines.length === 0) return;
 
     const newColumns = [...columns];
@@ -220,6 +274,20 @@ const chunkColumns = (flat: string[]) => {
     }
   }, [columns]);
 
+  // Tự động tạo cột mới khi cần
+  useEffect(() => {
+    const lastColumnIndex = columns.length - 1;
+    const lastColumn = columns[lastColumnIndex];
+    
+    // Chỉ tạo cột mới nếu cột cuối đã full và có ít nhất 1 dòng dữ liệu
+    if (lastColumn && isColumnFull(lastColumn) && lastColumn.some(line => !isEmptyLine(line))) {
+      const hasNextColumn = columns.length > lastColumnIndex + 1;
+      if (!hasNextColumn) {
+        setColumns(prev => [...prev, Array(maxLinesPerColumn).fill("")]);
+      }
+    }
+  }, [columns]);
+
   // Cleanup Swiper khi component unmount
   useEffect(() => {
     return () => {
@@ -233,30 +301,93 @@ const chunkColumns = (flat: string[]) => {
     };
   }, []);
 
+  // Cập nhật navigation khi columns thay đổi hoặc slide change
   useEffect(() => {
     if (!swiperRef.current || !swiperRef.current.swiper) return;
 
     const swiper = swiperRef.current.swiper;
+    
     const updateNav = () => {
       const currentIndex = swiper.activeIndex;
-      const canGoNext = isColumnFull(columns[currentIndex]);
+      const isLastColumn = currentIndex === columns.length - 1;
+      const currentColumnFull = isColumnFull(columns[currentIndex]);
+      
+      // Có thể next nếu: không phải cột cuối VÀ cột hiện tại đã full
+      const canGoNext = !isLastColumn && currentColumnFull;
+      
       const nextEl = swiper.navigation?.nextEl as HTMLElement;
+      const prevEl = swiper.navigation?.prevEl as HTMLElement;
+      
       if (nextEl) {
         if (!canGoNext) {
-          nextEl.classList.remove("swiper-button-disabled");
+          nextEl.classList.add("swiper-button-disabled");
           nextEl.setAttribute("aria-disabled", "true");
         } else {
           nextEl.classList.remove("swiper-button-disabled");
           nextEl.removeAttribute("aria-disabled");
         }
       }
+      
+      // Cập nhật prev button
+      if (prevEl) {
+        if (currentIndex === 0) {
+          prevEl.classList.add("swiper-button-disabled");
+          prevEl.setAttribute("aria-disabled", "true");
+        } else {
+          prevEl.classList.remove("swiper-button-disabled");
+          prevEl.removeAttribute("aria-disabled");
+        }
+      }
     };
 
+    // Cập nhật ngay lập tức
+    updateNav();
+    
+    // Thêm event listener cho slide change
     swiper.on("slideChange", updateNav);
-    updateNav(); // chạy lần đầu
+    
     return () => {
       swiper.off("slideChange", updateNav);
     };
+  }, [columns]);
+
+  // Cập nhật navigation khi swiper được khởi tạo
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (swiperRef.current && swiperRef.current.swiper) {
+        const swiper = swiperRef.current.swiper;
+        const currentIndex = swiper.activeIndex;
+        const isLastColumn = currentIndex === columns.length - 1;
+        const currentColumnFull = isColumnFull(columns[currentIndex]);
+        
+        const canGoNext = !isLastColumn && currentColumnFull;
+        
+        const nextEl = swiper.navigation?.nextEl as HTMLElement;
+        const prevEl = swiper.navigation?.prevEl as HTMLElement;
+        
+        if (nextEl) {
+          if (!canGoNext) {
+            nextEl.classList.add("swiper-button-disabled");
+            nextEl.setAttribute("aria-disabled", "true");
+          } else {
+            nextEl.classList.remove("swiper-button-disabled");
+            nextEl.removeAttribute("aria-disabled");
+          }
+        }
+        
+        if (prevEl) {
+          if (currentIndex === 0) {
+            prevEl.classList.add("swiper-button-disabled");
+            prevEl.setAttribute("aria-disabled", "true");
+          } else {
+            prevEl.classList.remove("swiper-button-disabled");
+            prevEl.removeAttribute("aria-disabled");
+          }
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [columns]);
 
   return (
@@ -408,6 +539,26 @@ const chunkColumns = (flat: string[]) => {
                               setCaretToEnd(node);
                             });
                           }}
+                          onCompositionStart={(e) => {
+                            // Xử lý khi bắt đầu nhập tiếng Việt có dấu
+                            e.currentTarget.setAttribute('data-composing', 'true');
+                          }}
+                          onCompositionEnd={(e) => {
+                            // Xử lý khi kết thúc nhập tiếng Việt có dấu
+                            e.currentTarget.removeAttribute('data-composing');
+                            const el = e.currentTarget;
+                            handleInputChange(
+                              colIndex,
+                              lineIndex,
+                              el.textContent || ""
+                            );
+                          }}
+                          onBeforeInput={(e) => {
+                            // Xử lý trước khi input để đảm bảo tương thích với IME
+                            if (e.currentTarget.getAttribute('data-composing') === 'true') {
+                              return; // Bỏ qua nếu đang nhập tiếng Việt
+                            }
+                          }}
                           onKeyDown={(e) =>
                             handleKeyDown(e, colIndex, lineIndex)
                           }
@@ -419,6 +570,9 @@ const chunkColumns = (flat: string[]) => {
                                 ? "text"
                                 : "not-allowed",
                             outline: "none",
+                            fontFamily: "inherit",
+                            wordBreak: "break-word",
+                            hyphens: "auto",
                           }}
                         >
                           {isEmptyLine(line) ? "\u00A0" : line}
@@ -438,10 +592,10 @@ const chunkColumns = (flat: string[]) => {
         <button
           onClick={() => router.push("/random/spin")}
           disabled={getTotalLines() === 0}
-          className={`border-none rounded-[8px] py-[7.5px] px-[63.5px] sm:py-[14px] sm:px-[75px] font-[700] mt-[23px] transition-all bg-[var(--color-primary)] text-white duration-200 ${
+          className={`border-none rounded-[8px] py-[7.5px] px-[63.5px] sm:py-[14px] sm:px-[75px] font-[700] mt-[23px] transition-all text-white duration-200 ${
             getTotalLines() === 0
-              ? "cursor-not-allowed"
-              : " cursor-pointer hover:bg-[#007a56]"
+              ? "cursor-not-allowed bg-[#50907d]"
+              : " cursor-pointer bg-[var(--color-primary)] hover:bg-[#007a56]"
           }`}
         >
           START
