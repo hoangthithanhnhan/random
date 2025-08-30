@@ -57,10 +57,10 @@ const Quay: NextPage<RandomProps> = ({ participants = [], onSpin }) => {
           {participants.map((participant, index) => (
             <div
               key={index}
-              className="rounded-3xl border-darkgray border-solid border-[1px] box-border h-[2rem] flex flex-row items-center justify-center py-[0.5rem] px-[0.625rem] min-h-[2rem]"
+              className="rounded-3xl border-darkgray border-solid border-[1px] box-border h-[2rem] flex flex-row items-center justify-center py-[0.5rem] px-[0.625rem] min-h-[2rem] max-w-[11.25rem]"
             >
-              <div className="flex-1 relative font-medium overflow-hidden text-ellipsis whitespace-nowrap">
-                <p className="m-0">{participant}</p>
+              <div className="relative font-medium w-full">
+                <p className="m-0 overflow-hidden text-white whitespace-nowrap text-ellipsis">{participant}</p>
               </div>
             </div>
           ))}
