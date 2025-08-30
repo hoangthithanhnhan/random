@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -10,36 +10,68 @@ import { Tooltip } from "@heroui/react";
 import { useRouter } from "next/navigation";
 
 const InputColumns = () => {
-
   const router = useRouter();
 
+  const maxLinesPerColumn = 26;
   const [columns, setColumns] = useState<string[][]>(
     Array(4)
-      .fill([])
-      .map(() => Array(26).fill(""))
+      .fill(null)
+      .map(() => Array(maxLinesPerColumn).fill(""))
   );
-  const maxLinesPerColumn = 26;
 
   // helper: clean text
   const cleanText = (s: string) => s.replace(/\u00A0/g, " ").trim();
   const isEmptyLine = (s: string | undefined | null) =>
     !s || cleanText(s) === "";
 
+  const isColumnFull = (col: string[]) =>
+    col.every((line) => !isEmptyLine(line));
+
+const TOTAL_LINES = maxLinesPerColumn * 4;
+const flattenColumns = (cols: string[][]) => cols.flat();
+const chunkColumns = (flat: string[]) => {
+  const result: string[][] = [];
+  for (let i = 0; i < flat.length; i += maxLinesPerColumn) {
+    result.push(flat.slice(i, i + maxLinesPerColumn));
+  }
+  return result;
+};
+
+  // nhập 1 dòng
   const handleInputChange = (
     colIndex: number,
     lineIndex: number,
     value: string
   ) => {
-    const isPreviousLinesFilled = columns[colIndex]
-      .slice(0, lineIndex)
-      .every((line) => !isEmptyLine(line));
+    let flat = flattenColumns(columns);
+    const index = colIndex * maxLinesPerColumn + lineIndex;
 
-    if (!isPreviousLinesFilled && !isEmptyLine(value)) {
-      return;
+    if (isEmptyLine(value)) {
+      // xoá → dồn toàn bộ phần tử sau lên
+      flat.splice(index, 1);
+      flat.push("");
+    } else {
+      // chặn nhập nếu cột trước chưa full
+      if (
+        colIndex > 0 &&
+        !isColumnFull(columns[colIndex - 1]) &&
+        !isEmptyLine(value)
+      ) {
+        return;
+      }
+
+      // bắt buộc nhập theo thứ tự
+      const isPreviousFilled = flat
+        .slice(0, index)
+        .every((line) => !isEmptyLine(line));
+      if (!isPreviousFilled && !isEmptyLine(value)) {
+        return;
+      }
+
+      flat[index] = cleanText(value);
     }
 
-    const newColumns = [...columns];
-    newColumns[colIndex][lineIndex] = cleanText(value);
+    const newColumns = chunkColumns(flat);
     setColumns(newColumns);
   };
 
@@ -48,6 +80,11 @@ const InputColumns = () => {
     colIndex: number,
     event: React.ClipboardEvent<HTMLDivElement>
   ) => {
+    if (colIndex > 0 && !isColumnFull(columns[colIndex - 1])) {
+      event.preventDefault();
+      return;
+    }
+
     event.preventDefault();
     const pasteData = event.clipboardData.getData("text");
     const rawLines = pasteData.split(/\r?\n/);
@@ -57,6 +94,7 @@ const InputColumns = () => {
     const newColumns = [...columns];
     let currentColIndex = colIndex;
     let currentLineIndex = 0;
+
     while (
       currentLineIndex < maxLinesPerColumn &&
       !isEmptyLine(newColumns[currentColIndex][currentLineIndex])
@@ -69,7 +107,11 @@ const InputColumns = () => {
         currentColIndex++;
         currentLineIndex = 0;
         if (currentColIndex >= newColumns.length) {
-          newColumns.push(Array(maxLinesPerColumn).fill(""));
+          if (isColumnFull(newColumns[currentColIndex - 1])) {
+            newColumns.push(Array(maxLinesPerColumn).fill(""));
+          } else {
+            break;
+          }
         }
       }
       newColumns[currentColIndex][currentLineIndex] = ln;
@@ -92,15 +134,13 @@ const InputColumns = () => {
     } catch {}
   }
 
-  // tìm dòng trống đầu tiên trong cột
   const getFirstEmptyLine = (colIndex: number) => {
     const col = columns[colIndex];
     const idx = col.findIndex((line) => isEmptyLine(line));
     return idx === -1 ? col.length : idx;
   };
 
-  // focus handler: ép focus về dòng trống đầu tiên,
-  // nhưng vẫn cho edit các dòng đã nhập
+  // ép focus
   const handleFocus = (
     e: React.FocusEvent<HTMLDivElement>,
     colIndex: number,
@@ -109,7 +149,6 @@ const InputColumns = () => {
     const firstEmpty = getFirstEmptyLine(colIndex);
     const currentLine = columns[colIndex][lineIndex];
 
-    // Nếu dòng này trống và chưa phải dòng trống đầu tiên -> ép focus về dòng trống đầu tiên
     if (isEmptyLine(currentLine) && lineIndex !== firstEmpty) {
       e.preventDefault();
       const target = document.getElementById(
@@ -120,13 +159,13 @@ const InputColumns = () => {
       return;
     }
 
-    // Ngược lại (dòng có chữ hoặc đúng dòng trống đầu tiên) thì cho edit/focus bình thường
     const el = e.currentTarget;
     if (isEmptyLine(el.textContent ?? "")) {
       setCaretToEnd(el);
     }
   };
 
+  // Enter để xuống dòng
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLDivElement>,
     colIndex: number,
@@ -150,6 +189,8 @@ const InputColumns = () => {
           nextColFirstLine?.focus();
           setTimeout(() => setCaretToEnd(nextColFirstLine), 0);
         } else {
+          if (!isColumnFull(columns[colIndex])) return;
+
           const newColumns = [...columns, Array(maxLinesPerColumn).fill("")];
           setColumns(newColumns);
           setTimeout(() => {
@@ -170,11 +211,39 @@ const InputColumns = () => {
       0
     );
 
+  useEffect(() => {
+    const swiperEl = document.querySelector(".swiper") as any;
+    if (!swiperEl || !swiperEl.swiper) return;
+
+    const swiper = swiperEl.swiper;
+    const updateNav = () => {
+      const currentIndex = swiper.activeIndex;
+      const canGoNext = isColumnFull(columns[currentIndex]);
+      const nextEl = swiper.navigation?.nextEl as HTMLElement;
+      if (nextEl) {
+        if (!canGoNext) {
+          nextEl.classList.remove("swiper-button-disabled");
+          nextEl.setAttribute("aria-disabled", "true");
+        } else {
+          nextEl.classList.remove("swiper-button-disabled");
+          nextEl.removeAttribute("aria-disabled");
+        }
+      }
+    };
+
+    swiper.on("slideChange", updateNav);
+    updateNav(); // chạy lần đầu
+    return () => {
+      swiper.off("slideChange", updateNav);
+    };
+  }, [columns]);
+
   return (
     <>
       <div className="relative w-full overflow-hidden">
-        <div className="relative p-4 pb-10 sm:px-16">
-          <div className="text-center sm:text-right font-semibold flex justify-center sm:justify-end text-white mb-3 sm:mb-4 mr-2.5">
+        <div className="relative p-4 pb-10 sm:px-[80px] sm:py-0">
+          {/* Total count */}
+          <div className="text-center sm:text-right font-semibold flex justify-center sm:justify-end text-white mb-3 sm:mb-4">
             <Image
               src="/total.png"
               alt="icon-list"
@@ -184,6 +253,8 @@ const InputColumns = () => {
             />
             <p className="text-white">TOTAL {getTotalLines()}</p>
           </div>
+
+          {/* Navigation btns */}
           <div className="sm:block hidden">
             <div
               className="swiper-button-prev custom-nav"
@@ -209,6 +280,7 @@ const InputColumns = () => {
             ></div>
           </div>
 
+          {/* Swiper */}
           <Swiper
             modules={[Navigation, Pagination]}
             navigation={{
@@ -230,10 +302,11 @@ const InputColumns = () => {
               1024: { slidesPerView: 3, pagination: false },
               1280: { slidesPerView: 4, pagination: false },
             }}
+            style={{ width: "100%", maxWidth: "100%" }}
           >
             {columns.map((column, colIndex) => (
               <SwiperSlide key={colIndex}>
-                <div className="rounded-lg shadow-lg overflow-hidden mx-2 min-w-[21.18vw]">
+                <div className="rounded-lg shadow-lg overflow-hidden">
                   <div
                     className="flex justify-center items-center bg-[#F0F0F0]"
                     style={{
@@ -243,15 +316,22 @@ const InputColumns = () => {
                     }}
                   >
                     <Image
-                      src="/people.png"
+                      src={
+                        colIndex === 0 || isColumnFull(columns[colIndex - 1])
+                          ? "/people.png"
+                          : "/people-disable.png"
+                      }
                       alt="icon-list"
                       width={16}
                       height={16}
                       style={{ marginRight: 5 }}
                     />
                     <div
-                      className="text-sm font-medium"
-                      style={{ color: "var(--color-primary)" }}
+                      className={`text-sm font-medium ${
+                        colIndex === 0 || isColumnFull(columns[colIndex - 1])
+                          ? "text-[var(--color-primary)]"
+                          : "text-[#A1A1A1]"
+                      }`}
                     >
                       {column.filter((line) => !isEmptyLine(line)).length}
                     </div>
@@ -277,10 +357,22 @@ const InputColumns = () => {
                         <div
                           id={`line-${colIndex}-${lineIndex}`}
                           className="relative w-full h-[22.5px] overflow-hidden text-white text-center whitespace-nowrap text-ellipsis"
-                          contentEditable
+                          contentEditable={
+                            colIndex === 0 ||
+                            isColumnFull(columns[colIndex - 1])
+                          }
                           suppressContentEditableWarning
-                          onFocus={(e) => handleFocus(e, colIndex, lineIndex)} 
+                          onFocus={(e) => handleFocus(e, colIndex, lineIndex)}
                           onInput={(e) => {
+                            if (
+                              !(
+                                colIndex === 0 ||
+                                isColumnFull(columns[colIndex - 1])
+                              )
+                            ) {
+                              e.currentTarget.blur();
+                              return;
+                            }
                             const el = e.currentTarget;
                             handleInputChange(
                               colIndex,
@@ -299,7 +391,11 @@ const InputColumns = () => {
                           }
                           style={{
                             padding: "0 8px",
-                            cursor: "text",
+                            cursor:
+                              colIndex === 0 ||
+                              isColumnFull(columns[colIndex - 1])
+                                ? "text"
+                                : "not-allowed",
                             outline: "none",
                           }}
                         >
