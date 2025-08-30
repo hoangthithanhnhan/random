@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 
 const InputColumns = () => {
   const router = useRouter();
+  const swiperRef = useRef<any>(null);
 
   const maxLinesPerColumn = 26;
   const [columns, setColumns] = useState<string[][]>(
@@ -211,11 +212,31 @@ const chunkColumns = (flat: string[]) => {
       0
     );
 
+  // Lưu danh sách người tham gia vào localStorage
   useEffect(() => {
-    const swiperEl = document.querySelector(".swiper") as any;
-    if (!swiperEl || !swiperEl.swiper) return;
+    const totalLines = getTotalLines();
+    if (totalLines > 0) {
+      localStorage.setItem('participants', JSON.stringify(columns));
+    }
+  }, [columns]);
 
-    const swiper = swiperEl.swiper;
+  // Cleanup Swiper khi component unmount
+  useEffect(() => {
+    return () => {
+      if (swiperRef.current && swiperRef.current.swiper) {
+        try {
+          swiperRef.current.swiper.destroy(true, true);
+        } catch (error) {
+          console.warn('Swiper cleanup error:', error);
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!swiperRef.current || !swiperRef.current.swiper) return;
+
+    const swiper = swiperRef.current.swiper;
     const updateNav = () => {
       const currentIndex = swiper.activeIndex;
       const canGoNext = isColumnFull(columns[currentIndex]);
@@ -282,6 +303,7 @@ const chunkColumns = (flat: string[]) => {
 
           {/* Swiper */}
           <Swiper
+            ref={swiperRef}
             modules={[Navigation, Pagination]}
             navigation={{
               prevEl: ".swiper-button-prev",
@@ -415,7 +437,12 @@ const chunkColumns = (flat: string[]) => {
       <div className="flex justify-center items-center">
         <button
           onClick={() => router.push("/random/spin")}
-          className="bg-[var(--color-primary)] text-white border-none rounded-[8px] py-[7.5px] px-[63.5px] sm:py-[14px] sm:px-[75px] font-[700] cursor-pointer mt-[23px]"
+          disabled={getTotalLines() === 0}
+          className={`border-none rounded-[8px] py-[7.5px] px-[63.5px] sm:py-[14px] sm:px-[75px] font-[700] mt-[23px] transition-all bg-[var(--color-primary)] text-white duration-200 ${
+            getTotalLines() === 0
+              ? "cursor-not-allowed"
+              : " cursor-pointer hover:bg-[#007a56]"
+          }`}
         >
           START
         </button>
